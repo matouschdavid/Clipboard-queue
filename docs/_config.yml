@@ -1,0 +1,5 @@
+remote:
+  cbq:
+    theme: jekyll-theme-minimal
+    title: cbq
+    description: A clipboard manager that works like a stack or queue
