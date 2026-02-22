@@ -1,0 +1,52 @@
+# .goreleaser.yaml
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=1
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    main: ./main.go
+    binary: cbq
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md # I should create a README.md or use index.md
+
+brews:
+  - name: cbq
+    repository:
+      owner: vibe-coding
+      name: cbq # Using the same repo as a tap
+    url_template: "https://github.com/vibe-coding/cbq/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    commit_author:
+      name: cbq-bot
+      email: cbq-bot@vibe-coding.com
+    homepage: "https://github.com/vibe-coding/cbq"
+    description: "A clipboard manager that works like a stack or queue"
+    license: "MIT"
+    install: |
+      bin.install "cbq"
+    test: |
+      system "#{bin}/cbq --version"
+
+release:
+  github:
+    owner: vibe-coding
+    name: cbq
+  # If we want it on every commit, we might need to overwrite tags or use something else.
+  # But better to have distinct versions.
+  prerelease: auto
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
