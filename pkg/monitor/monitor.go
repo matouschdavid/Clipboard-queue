@@ -4,30 +4,96 @@ import (
 	"log"
 	"time"
 
-	"github.com/atotto/clipboard"
+	hook "github.com/robotn/gohook"
+	"github.com/vibe-coding/cbq/pkg/queue"
 	"github.com/vibe-coding/cbq/pkg/storage"
 )
 
-func Start() {
-	lastText, err := clipboard.ReadAll()
-	if err != nil {
-		log.Println("Error reading clipboard:", err)
-	}
+// Modifier masks for gohook
+const (
+	maskShift = 0x0001 | 0x0010
+	maskCtrl  = 0x0002 | 0x0020
+	maskMeta  = 0x0004 | 0x0040 // Cmd on macOS
+	maskAlt   = 0x0008 | 0x0080 // Option on macOS
+)
 
-	for {
-		time.Sleep(1 * time.Second)
-		currentText, err := clipboard.ReadAll()
-		if err != nil {
-			log.Println("Error reading clipboard:", err)
+// macOS Virtual Keycodes
+const (
+	keyC = 8
+	keyV = 9
+	keyI = 34
+	keyR = 15
+)
+
+func getManager() *queue.Manager {
+	path, err := storage.GetDefaultPath()
+	if err != nil {
+		log.Fatalf("failed to get storage path: %v", err)
+	}
+	s := storage.NewJSONStorage(path)
+	c := &queue.SystemClipboard{}
+	return queue.NewManager(s, c)
+}
+
+func Start() {
+	evChan := hook.Start()
+	defer hook.End()
+
+	mgr := getManager()
+
+	log.Println("CBQ Monitor started.")
+	log.Println("Hotkeys (macOS):")
+	log.Println("  Cmd+I: Start queue (Enable collection)")
+	log.Println("  Cmd+R: Clear and deactivate queue")
+	log.Println("  Cmd+C: Record to queue (when active)")
+	log.Println("  Cmd+V: Pop from queue (when active)")
+
+	for ev := range evChan {
+		if ev.Kind != hook.KeyDown {
 			continue
 		}
 
-		if currentText != lastText && currentText != "" {
-			items, _ := storage.Load()
-			items = append(items, currentText)
-			storage.Save(items)
-			lastText = currentText
-			log.Printf("Copied: %s\n", currentText)
+		// Cmd key check (Meta on macOS)
+		isCmd := (ev.Mask & maskMeta) != 0
+
+		if isCmd {
+			switch ev.Rawcode {
+			case keyI: // Cmd+I: Start/Activate
+				if err := mgr.SetActive(true); err != nil {
+					log.Printf("Error activating: %v", err)
+				} else {
+					log.Println(">>> Queue STARTED (Active)")
+				}
+			case keyR: // Cmd+R: Reset/Deactivate
+				if err := mgr.SetActive(false); err != nil {
+					log.Printf("Error deactivating: %v", err)
+				} else {
+					log.Println(">>> Queue CLEARED and Deactivated")
+				}
+			case keyC: // Cmd+C: Copy
+				state, _ := mgr.GetStatus()
+				if state.Active {
+					// Wait a bit for the system to update clipboard
+					go func() {
+						time.Sleep(200 * time.Millisecond)
+						clipboard := &queue.SystemClipboard{}
+						text, err := clipboard.Read()
+						if err == nil && text != "" {
+							if err := mgr.Add(text); err == nil {
+								log.Printf("Copied to queue: %s\n", text)
+							}
+						}
+					}()
+				}
+			case keyV: // Cmd+V: Paste/Pop
+				state, _ := mgr.GetStatus()
+				if state.Active && len(state.Items) > 0 {
+					item, err := mgr.Pop(false) // Always FIFO for Cmd+V for now
+					if err == nil {
+						log.Printf("Popped from queue: %s\n", item)
+					}
+				}
+			}
 		}
 	}
 }

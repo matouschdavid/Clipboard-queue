@@ -4,15 +4,25 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/atotto/clipboard"
 	"github.com/spf13/cobra"
 	"github.com/vibe-coding/cbq/pkg/monitor"
+	"github.com/vibe-coding/cbq/pkg/queue"
 	"github.com/vibe-coding/cbq/pkg/storage"
 )
 
 var (
 	isStack bool
 )
+
+func getManager() *queue.Manager {
+	path, err := storage.GetDefaultPath()
+	if err != nil {
+		log.Fatalf("failed to get storage path: %v", err)
+	}
+	s := storage.NewJSONStorage(path)
+	c := &queue.SystemClipboard{}
+	return queue.NewManager(s, c)
+}
 
 var StartCmd = &cobra.Command{
 	Use:   "start",
@@ -27,32 +37,15 @@ var PopCmd = &cobra.Command{
 	Use:   "pop",
 	Short: "Pop the next item to clipboard",
 	Run: func(cmd *cobra.Command, args []string) {
-		items, err := storage.Load()
+		mgr := getManager()
+		item, err := mgr.Pop(isStack)
 		if err != nil {
+			if err.Error() == "queue is empty" {
+				fmt.Println("Queue is empty")
+				return
+			}
 			log.Fatal(err)
 		}
-
-		if len(items) == 0 {
-			fmt.Println("Queue is empty")
-			return
-		}
-
-		var item string
-		if isStack {
-			// LIFO (Last In First Out)
-			item = items[len(items)-1]
-			items = items[:len(items)-1]
-		} else {
-			// FIFO (First In First Out)
-			item = items[0]
-			items = items[1:]
-		}
-
-		err = clipboard.WriteAll(item)
-		if err != nil {
-			log.Fatal(err)
-		}
-		storage.Save(items)
 
 		fmt.Printf("Popped: %s\n", item)
 	},
@@ -62,12 +55,23 @@ var StatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show current items in queue",
 	Run: func(cmd *cobra.Command, args []string) {
-		items, _ := storage.Load()
-		if len(items) == 0 {
+		mgr := getManager()
+		state, err := mgr.GetStatus()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if state.Active {
+			fmt.Println("Status: ACTIVE (Collecting)")
+		} else {
+			fmt.Println("Status: INACTIVE")
+		}
+
+		if len(state.Items) == 0 {
 			fmt.Println("Queue is empty")
 			return
 		}
-		for i, item := range items {
+		for i, item := range state.Items {
 			fmt.Printf("%d: %s\n", i+1, item)
 		}
 	},
@@ -77,7 +81,10 @@ var ClearCmd = &cobra.Command{
 	Use:   "clear",
 	Short: "Clear the queue",
 	Run: func(cmd *cobra.Command, args []string) {
-		storage.Clear()
+		mgr := getManager()
+		if err := mgr.Clear(); err != nil {
+			log.Fatal(err)
+		}
 		fmt.Println("Queue cleared")
 	},
 }

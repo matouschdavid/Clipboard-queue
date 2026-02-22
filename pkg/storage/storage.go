@@ -2,62 +2,87 @@ package storage
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
-type Storage struct {
-	Items []string `json:"items"`
+type State struct {
+	Items  []string `json:"items"`
+	Active bool     `json:"active"`
 }
 
-func getPath() (string, error) {
+type Storage interface {
+	Load() (*State, error)
+	Save(state *State) error
+	Clear() error
+}
+
+type JSONStorage struct {
+	Path string
+}
+
+func NewJSONStorage(path string) *JSONStorage {
+	return &JSONStorage{Path: path}
+}
+
+func GetDefaultPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(home, ".cbq", "state.json")
-	dir := filepath.Dir(path)
+	return filepath.Join(home, ".cbq", "state.json"), nil
+}
+
+func (s *JSONStorage) Load() (*State, error) {
+	if _, err := os.Stat(s.Path); os.IsNotExist(err) {
+		return &State{Items: []string{}, Active: false}, nil
+	}
+	data, err := os.ReadFile(s.Path)
+	if err != nil {
+		return nil, err
+	}
+	var state State
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, err
+	}
+	return &state, nil
+}
+
+func (s *JSONStorage) Save(state *State) error {
+	dir := filepath.Dir(s.Path)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return "", err
+			return err
 		}
 	}
-	return path, nil
-}
-
-func Load() ([]string, error) {
-	path, err := getPath()
-	if err != nil {
-		return nil, err
-	}
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return []string{}, nil
-	}
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var storage Storage
-	if err := json.Unmarshal(data, &storage); err != nil {
-		return nil, err
-	}
-	return storage.Items, nil
-}
-
-func Save(items []string) error {
-	path, err := getPath()
+	data, err := json.Marshal(state)
 	if err != nil {
 		return err
 	}
-	storage := Storage{Items: items}
-	data, err := json.Marshal(storage)
+	return os.WriteFile(s.Path, data, 0644)
+}
+
+func (s *JSONStorage) Clear() error {
+	state, err := s.Load()
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(path, data, 0644)
+	state.Items = []string{}
+	return s.Save(state)
+}
+
+// Global helper functions to maintain compatibility with existing code during refactor
+func Load() (*State, error) {
+	path, _ := GetDefaultPath()
+	return NewJSONStorage(path).Load()
+}
+
+func Save(state *State) error {
+	path, _ := GetDefaultPath()
+	return NewJSONStorage(path).Save(state)
 }
 
 func Clear() error {
-	return Save([]string{})
+	path, _ := GetDefaultPath()
+	return NewJSONStorage(path).Clear()
 }

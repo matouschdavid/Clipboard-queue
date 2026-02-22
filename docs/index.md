@@ -31,36 +31,39 @@ go install
 ## Usage
 
 ### 1. Start the monitor
-To start recording your clipboard, run:
+To start the background listener for hotkeys and clipboard changes, run:
 ```bash
 cbq start
 ```
+Keep this terminal running (or run in background).
 
-### 2. Copy multiple items
-Just use your regular `Cmd+C` or `Right-click > Copy` on several pieces of text.
+### 2. Control the queue with Hotkeys (macOS)
+Once the monitor is started, you can use these global hotkeys:
 
-### 3. Paste the items back
-To get the first item you copied and put it back onto your system clipboard:
-```bash
-cbq pop
-```
-Then use `Cmd+V` as usual. Repeat this to get the next items.
+- **`Cmd + I`**: **Start/Activate** the queue. This clears any previous items and starts recording every `Cmd + C`.
+- **`Cmd + C`**: Copy items normally. If `cbq` is active, it records them in order.
+- **`Cmd + V`**: Paste items. If `cbq` is active, it pops the next item from the queue to your clipboard just before pasting.
+- **`Cmd + R`**: **Reset/Clear** the queue and deactivate it.
 
-To paste items in reverse order (stack mode):
-```bash
-cbq pop --stack
-# or
-cbq pop -s
-```
+### 3. Manual CLI Usage
+You can still interact with the queue manually:
 
-### 4. Check the queue status
-To see what's currently in your queue:
+#### Check the queue status
 ```bash
 cbq status
 ```
 
-### 5. Clear the queue
-To start fresh:
+#### Pop items manually
+To get the first item and put it back onto your system clipboard:
+```bash
+cbq pop
+```
+For reverse order (stack mode):
+```bash
+cbq pop --stack
+```
+
+#### Clear the queue
 ```bash
 cbq clear
 ```
