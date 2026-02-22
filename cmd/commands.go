@@ -37,6 +37,8 @@ var StartCmd = &cobra.Command{
 var PopCmd = &cobra.Command{
 	Use:   "pop",
 	Short: "Pop the next item to clipboard",
+	Long: `Pops the next item from the queue and writes it to the system clipboard.
+By default it uses the current mode (Queue or Stack), but you can override it with flags.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		mgr := getManager()
 		item, err := mgr.Pop(isStack)
@@ -118,6 +120,12 @@ var ModeCmd = &cobra.Command{
 		if err := mgr.SetStackMode(isStack); err != nil {
 			log.Fatal(err)
 		}
+
+		// Update clipboard to match the new mode
+		if err := mgr.SyncClipboard(); err != nil {
+			log.Printf("Warning: failed to sync clipboard: %v", err)
+		}
+
 		if isStack {
 			fmt.Println("Mode set to STACK (LIFO)")
 		} else {
@@ -130,7 +138,17 @@ var RootCmd = &cobra.Command{
 	Use:   "cbq",
 	Short: "cbq is a clipboard queue/stack manager",
 	Long: `A clipboard manager that works like a stack or queue.
-          Copy multiple times, then paste multiple times in order or reversed.`,
+Copy multiple times, then paste multiple times in order or reversed.
+
+Use 'cbq mode [stack|queue]' to persistently change the behavior:
+  - queue (FIFO): Pastes items in the same order they were copied.
+  - stack (LIFO): Pastes items in reverse order.
+
+Global Hotkeys (when 'cbq start' is running):
+  Cmd+I: Activate and clear
+  Cmd+C: Copy to queue
+  Cmd+V: Paste from queue
+  Cmd+R: Deactivate and clear`,
 }
 
 func init() {

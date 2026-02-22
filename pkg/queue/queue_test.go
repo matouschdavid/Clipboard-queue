@@ -75,6 +75,9 @@ func TestManager_Add(t *testing.T) {
 	if len(s.state.Items) != 2 || s.state.Items[0] != "item1" {
 		t.Errorf("item2 was not added correctly. state: %v", s.state)
 	}
+
+	// Must call SyncClipboard explicitly now
+	mgr.SyncClipboard()
 	if c.content != "item1" {
 		t.Errorf("expected item1 to be restored to clipboard, got %s", c.content)
 	}
@@ -116,7 +119,8 @@ func TestManager_Pop(t *testing.T) {
 	if item != "item1" {
 		t.Errorf("expected item1, got %s", item)
 	}
-	// In my new logic, Pop prepares the NEXT item in the clipboard (item2)
+	// SyncClipboard prepares the NEXT item (item2)
+	mgr.SyncClipboard()
 	if c.content != "item2" {
 		t.Errorf("expected clipboard content item2 (prepared next), got %s", c.content)
 	}
@@ -136,7 +140,8 @@ func TestManager_Pop(t *testing.T) {
 	if item != "item3" {
 		t.Errorf("expected item3, got %s", item)
 	}
-	// In LIFO mode, Pop prepares the NEXT item (item2)
+	// SyncClipboard prepares the NEXT item (item2)
+	mgr.SyncClipboard()
 	if c.content != "item2" {
 		t.Errorf("expected clipboard content item2 (prepared next), got %s", c.content)
 	}
@@ -152,7 +157,8 @@ func TestManager_Pop(t *testing.T) {
 	if item != "item2" {
 		t.Errorf("expected item2, got %s", item)
 	}
-	// Next prepared should be item1 now
+	// SyncClipboard prepares next (item1)
+	mgr.SyncClipboard()
 	if c.content != "item1" {
 		t.Errorf("expected clipboard content item1 (prepared next), got %s", c.content)
 	}
@@ -230,7 +236,8 @@ func TestManager_SetStackMode(t *testing.T) {
 	if !s.state.IsStack {
 		t.Error("expected stack mode")
 	}
-	// Clipboard should now contain the last item ("item2")
+	// Must call SyncClipboard
+	mgr.SyncClipboard()
 	if c.content != "item2" {
 		t.Errorf("expected item2 in clipboard, got %s", c.content)
 	}
@@ -243,7 +250,8 @@ func TestManager_SetStackMode(t *testing.T) {
 	if s.state.IsStack {
 		t.Error("expected queue mode")
 	}
-	// Clipboard should now contain the first item ("item1")
+	// Must call SyncClipboard
+	mgr.SyncClipboard()
 	if c.content != "item1" {
 		t.Errorf("expected item1 in clipboard, got %s", c.content)
 	}

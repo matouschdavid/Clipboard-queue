@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	hook "github.com/robotn/gohook"
@@ -41,6 +42,11 @@ func Start() {
 
 	mgr := getManager()
 
+	var (
+		popMu     sync.Mutex
+		isPopping bool
+	)
+
 	log.Println("CBQ Monitor started.")
 	log.Println("Hotkeys (macOS):")
 	log.Println("  Cmd+I: Start queue (Enable collection)")
@@ -75,11 +81,15 @@ func Start() {
 				if state.Active {
 					// Wait a bit for the system to update clipboard
 					go func() {
-						time.Sleep(200 * time.Millisecond)
+						time.Sleep(50 * time.Millisecond) // Faster capture
 						clipboard := &queue.SystemClipboard{}
 						text, err := clipboard.Read()
 						if err == nil && text != "" {
 							if err := mgr.Add(text); err == nil {
+								// After Add, restore the "current" item to clipboard (e.g. if in FIFO)
+								if !state.IsStack {
+									mgr.SyncClipboard()
+								}
 								log.Printf("Copied to queue: %s\n", text)
 							}
 						}
@@ -88,10 +98,27 @@ func Start() {
 			case keyV: // Cmd+V: Paste/Pop
 				state, _ := mgr.GetStatus()
 				if state.Active && len(state.Items) > 0 {
-					item, err := mgr.Pop(state.IsStack) // Use stored mode
-					if err == nil {
-						log.Printf("Popped from queue (%s): %s\n", modeStr(state.IsStack), item)
+					popMu.Lock()
+					if isPopping {
+						popMu.Unlock()
+						continue
 					}
+					isPopping = true
+					popMu.Unlock()
+
+					go func() {
+						// Wait for OS to paste the current item before we prepare the next one
+						time.Sleep(100 * time.Millisecond)
+						item, err := mgr.Pop(state.IsStack) // Use stored mode
+						if err == nil {
+							mgr.SyncClipboard()
+							log.Printf("Popped from queue (%s): %s\n", modeStr(state.IsStack), item)
+						}
+
+						popMu.Lock()
+						isPopping = false
+						popMu.Unlock()
+					}()
 				}
 			}
 		}

@@ -2,7 +2,7 @@ package queue
 
 import (
 	"errors"
-	"fmt"
+	"sync"
 	"github.com/vibe-coding/cbq/pkg/storage"
 )
 
@@ -16,6 +16,7 @@ type Clipboard interface {
 type Manager struct {
 	storage   storage.Storage
 	Clipboard Clipboard
+	mu        sync.Mutex
 }
 
 func NewManager(s storage.Storage, c Clipboard) *Manager {
@@ -27,6 +28,9 @@ func NewManager(s storage.Storage, c Clipboard) *Manager {
 
 // Add appends a new item to the queue if it's active
 func (m *Manager) Add(item string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	state, err := m.storage.Load()
 	if err != nil {
 		return err
@@ -42,25 +46,15 @@ func (m *Manager) Add(item string) error {
 	}
 
 	state.Items = append(state.Items, item)
-	if err := m.storage.Save(state); err != nil {
-		return err
-	}
-
-	// In FIFO mode, the system clipboard should always contain the FIRST item to be popped.
-	// After adding a new item, the system clipboard contains the NEW item.
-	// We need to restore it to the first item if we have more than one.
-	if !state.IsStack && len(state.Items) > 1 {
-		if err := m.Clipboard.Write(state.Items[0]); err != nil {
-			return fmt.Errorf("failed to restore first item to clipboard: %w", err)
-		}
-	}
-
-	return nil
+	return m.storage.Save(state)
 }
 
-// Pop removes an item from the queue and prepares the NEXT item in the clipboard
+// Pop removes an item from the queue
 // if isStack is true, it uses LIFO, otherwise FIFO
 func (m *Manager) Pop(isStack bool) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	state, err := m.storage.Load()
 	if err != nil {
 		return "", err
@@ -85,63 +79,68 @@ func (m *Manager) Pop(isStack bool) (string, error) {
 		return "", err
 	}
 
-	// After popping, prepare the NEXT item in the clipboard so the next paste is correct.
-	if len(state.Items) > 0 {
-		nextItem := state.Items[0]
-		if isStack {
-			nextItem = state.Items[len(state.Items)-1]
-		}
-		if err := m.Clipboard.Write(nextItem); err != nil {
-			return "", fmt.Errorf("failed to prepare next item in clipboard: %w", err)
-		}
-	}
-
 	return item, nil
 }
 
 // SetActive sets the collection mode state
 func (m *Manager) SetActive(active bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	state, err := m.storage.Load()
 	if err != nil {
 		return err
 	}
 	state.Active = active
-	if !active {
-		state.Items = []string{} // Clear on deactivate
-	} else {
-		state.Items = []string{} // Cmd+I: Start/Activate and clear
-	}
+	state.Items = []string{} // Always clear on change for Cmd+I/Cmd+R
 	return m.storage.Save(state)
 }
 
 // SetStackMode sets whether to use LIFO (stack) or FIFO (queue)
 func (m *Manager) SetStackMode(isStack bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	state, err := m.storage.Load()
 	if err != nil {
 		return err
 	}
 	state.IsStack = isStack
+	return m.storage.Save(state)
+}
 
-	// If the mode changed and we have items, we should update the clipboard to the new "next" item.
-	if len(state.Items) > 0 {
-		nextItem := state.Items[0]
-		if isStack {
-			nextItem = state.Items[len(state.Items)-1]
-		}
-		if err := m.Clipboard.Write(nextItem); err != nil {
-			return fmt.Errorf("failed to update clipboard for new mode: %w", err)
-		}
+// SyncClipboard updates the system clipboard to match the current next item in the queue
+func (m *Manager) SyncClipboard() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	state, err := m.storage.Load()
+	if err != nil {
+		return err
 	}
 
-	return m.storage.Save(state)
+	if len(state.Items) == 0 {
+		return nil
+	}
+
+	nextItem := state.Items[0]
+	if state.IsStack {
+		nextItem = state.Items[len(state.Items)-1]
+	}
+
+	return m.Clipboard.Write(nextItem)
 }
 
 // GetStatus returns the current state
 func (m *Manager) GetStatus() (*storage.State, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.storage.Load()
 }
 
 // Clear empties the queue
 func (m *Manager) Clear() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.storage.Clear()
 }
