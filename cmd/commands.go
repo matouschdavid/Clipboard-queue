@@ -48,6 +48,12 @@ var PopCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
+		// Explicitly write the popped item to the clipboard for manual use.
+		// Although Pop prepares the NEXT item, for the manual CLI we want the item we just popped.
+		if err := mgr.Clipboard.Write(item); err != nil {
+			log.Printf("Warning: failed to write to clipboard: %v", err)
+		}
+
 		fmt.Printf("Popped: %s\n", item)
 	},
 }
@@ -66,6 +72,12 @@ var StatusCmd = &cobra.Command{
 			fmt.Println("Status: ACTIVE (Collecting)")
 		} else {
 			fmt.Println("Status: INACTIVE")
+		}
+
+		if state.IsStack {
+			fmt.Println("Mode: STACK (LIFO)")
+		} else {
+			fmt.Println("Mode: QUEUE (FIFO)")
 		}
 
 		if len(state.Items) == 0 {
@@ -90,6 +102,30 @@ var ClearCmd = &cobra.Command{
 	},
 }
 
+var ModeCmd = &cobra.Command{
+	Use:   "mode [stack|queue]",
+	Short: "Set the mode to stack (LIFO) or queue (FIFO)",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		mgr := getManager()
+		isStack := false
+		if args[0] == "stack" {
+			isStack = true
+		} else if args[0] != "queue" {
+			log.Fatalf("invalid mode: %s. Use 'stack' or 'queue'", args[0])
+		}
+
+		if err := mgr.SetStackMode(isStack); err != nil {
+			log.Fatal(err)
+		}
+		if isStack {
+			fmt.Println("Mode set to STACK (LIFO)")
+		} else {
+			fmt.Println("Mode set to QUEUE (FIFO)")
+		}
+	},
+}
+
 var RootCmd = &cobra.Command{
 	Use:   "cbq",
 	Short: "cbq is a clipboard queue/stack manager",
@@ -103,5 +139,6 @@ func init() {
 	RootCmd.AddCommand(PopCmd)
 	RootCmd.AddCommand(StatusCmd)
 	RootCmd.AddCommand(ClearCmd)
+	RootCmd.AddCommand(ModeCmd)
 	PopCmd.Flags().BoolVarP(&isStack, "stack", "s", false, "Pop in stack mode (LIFO)")
 }

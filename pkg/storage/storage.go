@@ -9,6 +9,7 @@ import (
 type State struct {
 	Items  []string `json:"items"`
 	Active bool     `json:"active"`
+	IsStack bool    `json:"is_stack"`
 }
 
 type Storage interface {

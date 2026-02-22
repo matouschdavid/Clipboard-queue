@@ -88,12 +88,19 @@ func Start() {
 			case keyV: // Cmd+V: Paste/Pop
 				state, _ := mgr.GetStatus()
 				if state.Active && len(state.Items) > 0 {
-					item, err := mgr.Pop(false) // Always FIFO for Cmd+V for now
+					item, err := mgr.Pop(state.IsStack) // Use stored mode
 					if err == nil {
-						log.Printf("Popped from queue: %s\n", item)
+						log.Printf("Popped from queue (%s): %s\n", modeStr(state.IsStack), item)
 					}
 				}
 			}
 		}
 	}
+}
+
+func modeStr(isStack bool) string {
+	if isStack {
+		return "Stack"
+	}
+	return "Queue"
 }

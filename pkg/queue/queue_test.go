@@ -66,23 +66,36 @@ func TestManager_Add(t *testing.T) {
 		t.Errorf("item1 was not added. state: %v", s.state)
 	}
 
+	// For the first item, clipboard is already correct (item1)
+	// Now add item2. In FIFO mode, it should restore item1 to clipboard.
+	err = mgr.Add("item2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(s.state.Items) != 2 || s.state.Items[0] != "item1" {
+		t.Errorf("item2 was not added correctly. state: %v", s.state)
+	}
+	if c.content != "item1" {
+		t.Errorf("expected item1 to be restored to clipboard, got %s", c.content)
+	}
+
 	// Try adding when inactive
 	s.state.Active = false
-	err = mgr.Add("item2")
+	err = mgr.Add("item3")
 	if err != nil {
 		t.Fatalf("unexpected error when inactive: %v", err)
 	}
-	if len(s.state.Items) != 1 {
+	if len(s.state.Items) != 2 {
 		t.Errorf("item was added even if manager was inactive")
 	}
 
 	// Try adding duplicate
 	s.state.Active = true
-	err = mgr.Add("item1")
+	err = mgr.Add("item2")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(s.state.Items) != 1 {
+	if len(s.state.Items) != 2 {
 		t.Errorf("duplicate item was added")
 	}
 }
@@ -103,14 +116,19 @@ func TestManager_Pop(t *testing.T) {
 	if item != "item1" {
 		t.Errorf("expected item1, got %s", item)
 	}
-	if c.content != "item1" {
-		t.Errorf("expected clipboard content item1, got %s", c.content)
+	// In my new logic, Pop prepares the NEXT item in the clipboard (item2)
+	if c.content != "item2" {
+		t.Errorf("expected clipboard content item2 (prepared next), got %s", c.content)
 	}
 	if len(s.state.Items) != 2 || s.state.Items[0] != "item2" {
 		t.Errorf("queue state incorrect after FIFO pop: %v", s.state.Items)
 	}
 
 	// Test LIFO (Stack mode)
+	// Reset and enable stack mode
+	s.state.Items = []string{"item1", "item2", "item3"}
+	s.state.IsStack = true
+
 	item, err = mgr.Pop(true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -118,21 +136,44 @@ func TestManager_Pop(t *testing.T) {
 	if item != "item3" {
 		t.Errorf("expected item3, got %s", item)
 	}
-	if c.content != "item3" {
-		t.Errorf("expected clipboard content item3, got %s", c.content)
+	// In LIFO mode, Pop prepares the NEXT item (item2)
+	if c.content != "item2" {
+		t.Errorf("expected clipboard content item2 (prepared next), got %s", c.content)
 	}
-	if len(s.state.Items) != 1 || s.state.Items[0] != "item2" {
-		t.Errorf("queue state incorrect after LIFO pop: %v", s.state.Items)
+	if len(s.state.Items) != 2 || s.state.Items[0] != "item1" || s.state.Items[1] != "item2" {
+		t.Errorf("queue state incorrect after first LIFO pop: %v", s.state.Items)
 	}
 
-	// Pop the last one
-	item, _ = mgr.Pop(false)
+	// Pop next (still LIFO)
+	item, err = mgr.Pop(true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if item != "item2" {
 		t.Errorf("expected item2, got %s", item)
 	}
+	// Next prepared should be item1 now
+	if c.content != "item1" {
+		t.Errorf("expected clipboard content item1 (prepared next), got %s", c.content)
+	}
+	if len(s.state.Items) != 1 || s.state.Items[0] != "item1" {
+		t.Errorf("queue state incorrect after second LIFO pop: %v", s.state.Items)
+	}
 
-	// Pop empty queue
-	_, err = mgr.Pop(false)
+	// Pop last one
+	item, err = mgr.Pop(true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item != "item1" {
+		t.Errorf("expected item1, got %s", item)
+	}
+	if len(s.state.Items) != 0 {
+		t.Errorf("expected empty queue, got %v", s.state.Items)
+	}
+
+	// Pop empty queue should error
+	_, err = mgr.Pop(true)
 	if err == nil {
 		t.Error("expected error when popping empty queue")
 	}
@@ -169,5 +210,41 @@ func TestManager_SetActive(t *testing.T) {
 	}
 	if len(s.state.Items) != 0 {
 		t.Error("expected items to be cleared on deactivate")
+	}
+}
+
+func TestManager_SetStackMode(t *testing.T) {
+	s := &MockStorage{state: &storage.State{
+		Active:  true,
+		Items:   []string{"item1", "item2"},
+		IsStack: false,
+	}}
+	c := &MockClipboard{}
+	mgr := NewManager(s, c)
+
+	// Switch to stack mode
+	err := mgr.SetStackMode(true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !s.state.IsStack {
+		t.Error("expected stack mode")
+	}
+	// Clipboard should now contain the last item ("item2")
+	if c.content != "item2" {
+		t.Errorf("expected item2 in clipboard, got %s", c.content)
+	}
+
+	// Switch back to queue mode
+	err = mgr.SetStackMode(false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if s.state.IsStack {
+		t.Error("expected queue mode")
+	}
+	// Clipboard should now contain the first item ("item1")
+	if c.content != "item1" {
+		t.Errorf("expected item1 in clipboard, got %s", c.content)
 	}
 }
