@@ -14,7 +14,7 @@
 ### Using Homebrew
 
 ```bash
-brew tap vibe-coding/cbq
+brew tap matouschdavid/Clipboard-queue
 brew install cbq
 ```
 
@@ -23,10 +23,10 @@ brew install cbq
 ### From Source
 
 ```bash
-git clone https://github.com/vibe-coding/cbq.git
-cd cbq
-go install
+git clone https://github.com/matouschdavid/Clipboard-queue.git
+cd Clipboard-queue
 ```
+,search:
 
 ## Usage
 

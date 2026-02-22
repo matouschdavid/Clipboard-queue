@@ -27,13 +27,13 @@ brews:
   - name: cbq
     # Repository to push the tap formula to
     repository:
-      owner: vibe-coding
-      name: cbq
+      owner: matouschdavid
+      name: Clipboard-queue
     directory: .
     commit_author:
       name: cbq-bot
-      email: cbq-bot@vibe-coding.com
-    homepage: "https://github.com/vibe-coding/cbq"
+      email: cbq-bot@users.noreply.github.com
+    homepage: "https://github.com/matouschdavid/Clipboard-queue"
     description: "A clipboard manager that works like a stack or queue"
     license: "MIT"
     install: |
