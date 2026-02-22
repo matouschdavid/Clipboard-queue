@@ -2,7 +2,7 @@ package queue
 
 import (
 	"testing"
-	"github.com/vibe-coding/cbq/pkg/storage"
+	"github.com/matouschdavid/Clipboard-queue/pkg/storage"
 )
 
 // MockStorage implements storage.Storage for testing

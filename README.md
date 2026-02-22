@@ -25,8 +25,8 @@ brew install cbq
 ```bash
 git clone https://github.com/matouschdavid/Clipboard-queue.git
 cd Clipboard-queue
+go install
 ```
-,search:
 
 ## Usage
 

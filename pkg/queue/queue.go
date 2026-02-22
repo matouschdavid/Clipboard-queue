@@ -3,7 +3,7 @@ package queue
 import (
 	"errors"
 	"sync"
-	"github.com/vibe-coding/cbq/pkg/storage"
+	"github.com/matouschdavid/Clipboard-queue/pkg/storage"
 )
 
 // Clipboard interface allows mocking the system clipboard for tests

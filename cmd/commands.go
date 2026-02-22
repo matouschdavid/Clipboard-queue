@@ -5,9 +5,9 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
-	"github.com/vibe-coding/cbq/pkg/monitor"
-	"github.com/vibe-coding/cbq/pkg/queue"
-	"github.com/vibe-coding/cbq/pkg/storage"
+	"github.com/matouschdavid/Clipboard-queue/pkg/monitor"
+	"github.com/matouschdavid/Clipboard-queue/pkg/queue"
+	"github.com/matouschdavid/Clipboard-queue/pkg/storage"
 )
 
 var (

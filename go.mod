@@ -1,4 +1,4 @@
-module github.com/vibe-coding/cbq
+module github.com/matouschdavid/Clipboard-queue
 
 go 1.25.0
 

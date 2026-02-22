@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/vibe-coding/cbq/cmd"
+	"github.com/matouschdavid/Clipboard-queue/cmd"
 )
 
 func main() {

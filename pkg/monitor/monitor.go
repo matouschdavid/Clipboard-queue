@@ -6,8 +6,8 @@ import (
 	"time"
 
 	hook "github.com/robotn/gohook"
-	"github.com/vibe-coding/cbq/pkg/queue"
-	"github.com/vibe-coding/cbq/pkg/storage"
+	"github.com/matouschdavid/Clipboard-queue/pkg/queue"
+	"github.com/matouschdavid/Clipboard-queue/pkg/storage"
 )
 
 // Modifier masks for gohook
