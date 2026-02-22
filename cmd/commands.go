@@ -12,6 +12,7 @@ import (
 
 var (
 	isStack bool
+	Version = "v0.1.0" // Default version, can be overridden by LDFLAGS
 )
 
 func getManager() *queue.Manager {
@@ -97,6 +98,7 @@ var RootCmd = &cobra.Command{
 }
 
 func init() {
+	RootCmd.Version = Version
 	RootCmd.AddCommand(StartCmd)
 	RootCmd.AddCommand(PopCmd)
 	RootCmd.AddCommand(StatusCmd)
