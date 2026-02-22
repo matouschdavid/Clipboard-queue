@@ -17,17 +17,19 @@ builds:
     binary: cbq
 
 archives:
-  - format: tar.gz
+  - formats: [ "tar.gz" ]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE
       - README.md # I should create a README.md or use index.md
 
-brews:
+homebrews:
   - name: cbq
+    # Repository to push the tap formula to
     repository:
       owner: vibe-coding
-      name: cbq # Using the same repo as a tap
+      name: cbq
+    directory: .
     url_template: "https://github.com/vibe-coding/cbq/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     commit_author:
       name: cbq-bot
@@ -41,12 +43,8 @@ brews:
       system "#{bin}/cbq --version"
 
 release:
-  github:
-    owner: vibe-coding
-    name: cbq
-  # If we want it on every commit, we might need to overwrite tags or use something else.
-  # But better to have distinct versions.
+  # Using default auto-detection for owner/name to avoid 404 if repo is renamed
   prerelease: auto
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
