@@ -256,3 +256,95 @@ func TestManager_SetStackMode(t *testing.T) {
 		t.Errorf("expected item1 in clipboard, got %s", c.content)
 	}
 }
+
+func TestManager_AddAndSync(t *testing.T) {
+	s := &MockStorage{state: &storage.State{Active: true, Items: []string{}}}
+	c := &MockClipboard{}
+	mgr := NewManager(s, c)
+
+	// Add first item
+	err := mgr.AddAndSync("item1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if c.content != "item1" {
+		t.Errorf("expected item1 in clipboard, got %s", c.content)
+	}
+
+	// Add second item (Queue mode)
+	err = mgr.AddAndSync("item2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// In Queue mode, clipboard should stay at "item1"
+	if c.content != "item1" {
+		t.Errorf("expected item1 to remain in clipboard, got %s", c.content)
+	}
+	if len(s.state.Items) != 2 {
+		t.Errorf("expected 2 items, got %d", len(s.state.Items))
+	}
+
+	// Switch to stack mode and add third item
+	s.state.IsStack = true
+	err = mgr.AddAndSync("item3")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// In Stack mode, clipboard should be "item3"
+	if c.content != "item3" {
+		t.Errorf("expected item3 in clipboard (LIFO), got %s", c.content)
+	}
+}
+
+func TestManager_PopAndSync(t *testing.T) {
+	s := &MockStorage{state: &storage.State{
+		Active: true,
+		Items:  []string{"item1", "item2", "item3"},
+	}}
+	c := &MockClipboard{}
+	mgr := NewManager(s, c)
+
+	// Pop first item (Queue mode)
+	item, err := mgr.PopAndSync(false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item != "item1" {
+		t.Errorf("expected popped item1, got %s", item)
+	}
+	// Should have prepared item2
+	if c.content != "item2" {
+		t.Errorf("expected item2 prepared in clipboard, got %s", c.content)
+	}
+
+	// Pop next (still Queue mode)
+	item, err = mgr.PopAndSync(false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item != "item2" {
+		t.Errorf("expected popped item2, got %s", item)
+	}
+	// Should have prepared item3
+	if c.content != "item3" {
+		t.Errorf("expected item3 prepared in clipboard, got %s", c.content)
+	}
+
+	// Reset for Stack mode
+	s.state.Items = []string{"item1", "item2", "item3"}
+	s.state.IsStack = true
+	c.content = "item3" // Initial state for stack
+
+	// Pop from stack
+	item, err = mgr.PopAndSync(true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item != "item3" {
+		t.Errorf("expected popped item3, got %s", item)
+	}
+	// Should have prepared item2
+	if c.content != "item2" {
+		t.Errorf("expected item2 prepared in clipboard (LIFO), got %s", c.content)
+	}
+}

@@ -54,6 +54,9 @@ func Start() {
 	log.Println("  Cmd+C: Record to queue (when active)")
 	log.Println("  Cmd+V: Pop from queue (when active)")
 
+	// Initial sync to ensure clipboard is ready if monitor is restarted with items
+	mgr.SyncClipboard()
+
 	for ev := range evChan {
 		if ev.Kind != hook.KeyDown {
 			continue
@@ -81,15 +84,11 @@ func Start() {
 				if state.Active {
 					// Wait a bit for the system to update clipboard
 					go func() {
-						time.Sleep(50 * time.Millisecond) // Faster capture
+						time.Sleep(30 * time.Millisecond) // Faster capture
 						clipboard := &queue.SystemClipboard{}
 						text, err := clipboard.Read()
 						if err == nil && text != "" {
-							if err := mgr.Add(text); err == nil {
-								// After Add, restore the "current" item to clipboard (e.g. if in FIFO)
-								if !state.IsStack {
-									mgr.SyncClipboard()
-								}
+							if err := mgr.AddAndSync(text); err == nil {
 								log.Printf("Copied to queue: %s\n", text)
 							}
 						}
@@ -98,6 +97,9 @@ func Start() {
 			case keyV: // Cmd+V: Paste/Pop
 				state, _ := mgr.GetStatus()
 				if state.Active && len(state.Items) > 0 {
+					// Proactively sync clipboard on key down to be as fast as possible
+					mgr.SyncClipboard()
+
 					popMu.Lock()
 					if isPopping {
 						popMu.Unlock()
@@ -108,10 +110,9 @@ func Start() {
 
 					go func() {
 						// Wait for OS to paste the current item before we prepare the next one
-						time.Sleep(100 * time.Millisecond)
-						item, err := mgr.Pop(state.IsStack) // Use stored mode
+						time.Sleep(50 * time.Millisecond)
+						item, err := mgr.PopAndSync(state.IsStack) // Atomic pop and prepare next
 						if err == nil {
-							mgr.SyncClipboard()
 							log.Printf("Popped from queue (%s): %s\n", modeStr(state.IsStack), item)
 						}
 
