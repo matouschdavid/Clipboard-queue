@@ -14,11 +14,8 @@
 ### Using Homebrew
 
 ```bash
-brew tap matouschdavid/Clipboard-queue
-brew install cbq
+brew install matouschdavid/Clipboard-queue/cbq
 ```
-
-*(Note: Tap is not yet public, but that's how it will work)*
 
 ### From Source
 
