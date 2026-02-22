@@ -23,14 +23,13 @@ archives:
       - LICENSE
       - README.md # I should create a README.md or use index.md
 
-homebrews:
+brews:
   - name: cbq
     # Repository to push the tap formula to
     repository:
       owner: vibe-coding
       name: cbq
     directory: .
-    url_template: "https://github.com/vibe-coding/cbq/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     commit_author:
       name: cbq-bot
       email: cbq-bot@vibe-coding.com
