@@ -5,21 +5,21 @@
 class Cbq < Formula
   desc "A clipboard manager that works like a stack or queue"
   homepage "https://github.com/matouschdavid/Clipboard-queue"
-  version "0.1.12"
+  version "0.1.13"
   license "MIT"
   depends_on :macos
 
   if Hardware::CPU.intel?
-    url "https://github.com/matouschdavid/Clipboard-queue/releases/download/v0.1.12/Clipboard-queue_0.1.12_darwin_amd64.tar.gz"
-    sha256 "e98c672ac53738928124fc18712647b83e3e3d86456ebea86a4d103f3972516a"
+    url "https://github.com/matouschdavid/Clipboard-queue/releases/download/v0.1.13/Clipboard-queue_0.1.13_darwin_amd64.tar.gz"
+    sha256 "47b8db26c7c6a11a10dc931ba344735f4868aec9afd4392c5943d407de76c9d0"
 
     define_method(:install) do
       bin.install "cbq"
     end
   end
   if Hardware::CPU.arm?
-    url "https://github.com/matouschdavid/Clipboard-queue/releases/download/v0.1.12/Clipboard-queue_0.1.12_darwin_arm64.tar.gz"
-    sha256 "b39d7844c878f3d639a70e7bee73ca48b71209c0481228a699b2c1abb159dac6"
+    url "https://github.com/matouschdavid/Clipboard-queue/releases/download/v0.1.13/Clipboard-queue_0.1.13_darwin_arm64.tar.gz"
+    sha256 "eb777fd78e250b390727f8d3056213444d1e612bbd4c2cee44da151d4731e946"
 
     define_method(:install) do
       bin.install "cbq"
