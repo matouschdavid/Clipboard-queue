@@ -8,6 +8,7 @@
 - **Stack mode:** Paste items in reverse order (LIFO).
 - **Persistent storage:** Your queue survives restarts — state is saved to `~/.cbq/state.json`.
 - **Browser copy buttons:** Clipboard changes made outside of `Cmd+C` (e.g. website "copy to clipboard" buttons) are captured automatically while the queue is active.
+- **System notifications:** macOS notifications confirm when the queue is started or stopped.
 
 ## Installation
 

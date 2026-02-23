@@ -1,8 +1,10 @@
 package monitor
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -29,6 +31,12 @@ const (
 // pollInterval is how often the clipboard is checked for new content.
 // This catches both Cmd+C copies and browser "copy to clipboard" buttons.
 const pollInterval = 250 * time.Millisecond
+
+// notify sends a macOS system notification via osascript.
+func notify(title, message string) {
+	script := fmt.Sprintf(`display notification %q with title %q`, message, title)
+	_ = exec.Command("osascript", "-e", script).Run()
+}
 
 func newManager() *queue.Manager {
 	path, err := storage.GetDefaultPath()
@@ -163,6 +171,7 @@ func Start() {
 			}
 			poller = startPoller(mgr)
 			log.Println("Queue STARTED")
+			notify("CBQ", "Queue started — recording copies")
 
 		case keyR: // Cmd+R — deactivate and clear
 			if err := mgr.SetActive(false); err != nil {
@@ -174,6 +183,7 @@ func Start() {
 				poller = nil
 			}
 			log.Println("Queue STOPPED")
+			notify("CBQ", "Queue stopped")
 
 		case keyV: // Cmd+V — paste current item and prepare the next
 			state, err := mgr.GetStatus()
