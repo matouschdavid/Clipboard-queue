@@ -35,7 +35,19 @@ go install
 cbq
 ```
 
-Keep this running in the background (or set it up to launch on login). The version number is printed to the console on startup.
+Keep this running in the background. To start it automatically on every login, run the install command once:
+
+```bash
+cbq --install
+```
+
+To remove the login item:
+
+```bash
+cbq --uninstall
+```
+
+Logs are written to `~/.cbq/cbq.log` when running as a login item.
 
 ### 2. Global hotkeys
 
