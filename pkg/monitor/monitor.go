@@ -25,6 +25,7 @@ const (
 const (
 	keyV = 9
 	keyI = 34
+	keyM = 46
 	keyR = 15
 )
 
@@ -136,6 +137,7 @@ func Start() {
 	log.Println("CBQ monitor started.")
 	log.Println("  Cmd+I  start (clears queue)")
 	log.Println("  Cmd+R  stop  (clears queue)")
+	log.Println("  Cmd+M  toggle queue / stack mode")
 	log.Println("  Cmd+V  paste & advance")
 	log.Println("  (all clipboard changes captured automatically while active)")
 
@@ -184,6 +186,27 @@ func Start() {
 			}
 			log.Println("Queue STOPPED")
 			notify("CBQ", "Queue stopped")
+
+		case keyM: // Cmd+M — toggle between queue (FIFO) and stack (LIFO)
+			state, err := mgr.GetStatus()
+			if err != nil {
+				log.Printf("Error reading state: %v", err)
+				continue
+			}
+			newMode := !state.IsStack
+			if err := mgr.SetStackMode(newMode); err != nil {
+				log.Printf("Error setting mode: %v", err)
+				continue
+			}
+			if err := mgr.SyncClipboard(); err != nil {
+				log.Printf("Warning: clipboard sync failed: %v", err)
+			}
+			label := "Queue (FIFO)"
+			if newMode {
+				label = "Stack (LIFO)"
+			}
+			log.Printf("Mode: %s", label)
+			notify("CBQ", "Mode: "+label)
 
 		case keyV: // Cmd+V — paste current item and prepare the next
 			state, err := mgr.GetStatus()

@@ -44,14 +44,12 @@ Keep this running in the background (or set it up to launch on login). The versi
 | `Cmd+I` | **Activate** — clears the queue and starts recording copies  |
 | `Cmd+C` | Copy as normal — all clipboard changes are captured automatically while active, including browser copy buttons |
 | `Cmd+V` | Paste as normal — pops the next item from the queue while active |
+| `Cmd+M` | **Toggle mode** — switches between Queue (FIFO) and Stack (LIFO) |
 | `Cmd+R` | **Deactivate** — clears the queue and stops recording        |
 
 ### 3. Switch mode
 
-The mode is persisted in `~/.cbq/state.json`. Edit the `"is_stack"` field directly:
-
-- `false` — queue mode (FIFO, default)
-- `true` — stack mode (LIFO)
+Press `Cmd+M` at any time to toggle between Queue and Stack mode. A notification confirms the new mode. The setting is persisted in `~/.cbq/state.json`.
 
 ## Contributing
 
