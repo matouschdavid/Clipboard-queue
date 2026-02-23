@@ -7,9 +7,9 @@ import (
 )
 
 type State struct {
-	Items  []string `json:"items"`
-	Active bool     `json:"active"`
-	IsStack bool    `json:"is_stack"`
+	Items   []string `json:"items"`
+	Active  bool     `json:"active"`
+	IsStack bool     `json:"is_stack"`
 }
 
 type Storage interface {
@@ -46,21 +46,37 @@ func (s *JSONStorage) Load() (*State, error) {
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, err
 	}
+	if state.Items == nil {
+		state.Items = []string{}
+	}
 	return &state, nil
 }
 
+// Save writes state atomically via a temp file + rename to prevent corruption on crash.
 func (s *JSONStorage) Save(state *State) error {
 	dir := filepath.Dir(s.Path)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return err
-		}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
 	}
-	data, err := json.Marshal(state)
+	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.Path, data, 0644)
+	tmp, err := os.CreateTemp(dir, ".cbq-state-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName) // no-op if rename succeeded
+
+	if _, err = tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, s.Path)
 }
 
 func (s *JSONStorage) Clear() error {
@@ -70,20 +86,4 @@ func (s *JSONStorage) Clear() error {
 	}
 	state.Items = []string{}
 	return s.Save(state)
-}
-
-// Global helper functions to maintain compatibility with existing code during refactor
-func Load() (*State, error) {
-	path, _ := GetDefaultPath()
-	return NewJSONStorage(path).Load()
-}
-
-func Save(state *State) error {
-	path, _ := GetDefaultPath()
-	return NewJSONStorage(path).Save(state)
-}
-
-func Clear() error {
-	path, _ := GetDefaultPath()
-	return NewJSONStorage(path).Clear()
 }

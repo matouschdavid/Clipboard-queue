@@ -4,6 +4,8 @@ BINARY=cbq
 VERSION=$(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
 LDFLAGS=-ldflags "-X main.version=${VERSION}"
 
+
+
 .PHONY: all build test clean run
 
 all: test build
@@ -19,7 +21,7 @@ clean:
 	rm -rf dist/
 
 run: build
-	./${BINARY} start
+	./${BINARY}
 
 install:
 	go install ${LDFLAGS}

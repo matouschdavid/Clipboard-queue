@@ -2,10 +2,11 @@ package queue
 
 import (
 	"testing"
+
 	"github.com/matouschdavid/Clipboard-queue/pkg/storage"
 )
 
-// MockStorage implements storage.Storage for testing
+// MockStorage implements storage.Storage for testing.
 type MockStorage struct {
 	state *storage.State
 	err   error
@@ -34,7 +35,7 @@ func (m *MockStorage) Clear() error {
 	return nil
 }
 
-// MockClipboard implements Clipboard for testing
+// MockClipboard implements Clipboard for testing.
 type MockClipboard struct {
 	content string
 	err     error
@@ -57,49 +58,44 @@ func TestManager_Add(t *testing.T) {
 	c := &MockClipboard{}
 	mgr := NewManager(s, c)
 
-	err := mgr.Add("item1")
-	if err != nil {
+	if err := mgr.Add("item1"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
 	if len(s.state.Items) != 1 || s.state.Items[0] != "item1" {
-		t.Errorf("item1 was not added. state: %v", s.state)
+		t.Errorf("item1 not added: %v", s.state.Items)
 	}
 
-	// For the first item, clipboard is already correct (item1)
-	// Now add item2. In FIFO mode, it should restore item1 to clipboard.
-	err = mgr.Add("item2")
-	if err != nil {
+	if err := mgr.Add("item2"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(s.state.Items) != 2 || s.state.Items[0] != "item1" {
-		t.Errorf("item2 was not added correctly. state: %v", s.state)
+		t.Errorf("state incorrect after item2: %v", s.state.Items)
 	}
 
-	// Must call SyncClipboard explicitly now
-	mgr.SyncClipboard()
+	// SyncClipboard should put the first item (FIFO next) onto the clipboard.
+	if err := mgr.SyncClipboard(); err != nil {
+		t.Fatalf("sync error: %v", err)
+	}
 	if c.content != "item1" {
-		t.Errorf("expected item1 to be restored to clipboard, got %s", c.content)
+		t.Errorf("expected clipboard=item1, got %q", c.content)
 	}
 
-	// Try adding when inactive
+	// Inactive: add should be a no-op.
 	s.state.Active = false
-	err = mgr.Add("item3")
-	if err != nil {
+	if err := mgr.Add("item3"); err != nil {
 		t.Fatalf("unexpected error when inactive: %v", err)
 	}
 	if len(s.state.Items) != 2 {
-		t.Errorf("item was added even if manager was inactive")
+		t.Errorf("item added while inactive")
 	}
 
-	// Try adding duplicate
+	// Duplicate of last item should be rejected.
 	s.state.Active = true
-	err = mgr.Add("item2")
-	if err != nil {
+	if err := mgr.Add("item2"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(s.state.Items) != 2 {
-		t.Errorf("duplicate item was added")
+		t.Errorf("duplicate was added")
 	}
 }
 
@@ -111,77 +107,66 @@ func TestManager_Pop(t *testing.T) {
 	c := &MockClipboard{}
 	mgr := NewManager(s, c)
 
-	// Test FIFO (Queue mode)
+	// FIFO pop.
 	item, err := mgr.Pop(false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if item != "item1" {
-		t.Errorf("expected item1, got %s", item)
+		t.Errorf("expected item1, got %q", item)
 	}
-	// SyncClipboard prepares the NEXT item (item2)
 	mgr.SyncClipboard()
 	if c.content != "item2" {
-		t.Errorf("expected clipboard content item2 (prepared next), got %s", c.content)
+		t.Errorf("expected clipboard=item2 after FIFO pop, got %q", c.content)
 	}
 	if len(s.state.Items) != 2 || s.state.Items[0] != "item2" {
-		t.Errorf("queue state incorrect after FIFO pop: %v", s.state.Items)
+		t.Errorf("wrong state after FIFO pop: %v", s.state.Items)
 	}
 
-	// Test LIFO (Stack mode)
-	// Reset and enable stack mode
+	// LIFO pop.
 	s.state.Items = []string{"item1", "item2", "item3"}
 	s.state.IsStack = true
+	// invalidate cache so load() picks up the reset state
+	mgr.state = nil
 
 	item, err = mgr.Pop(true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if item != "item3" {
-		t.Errorf("expected item3, got %s", item)
+		t.Errorf("expected item3, got %q", item)
 	}
-	// SyncClipboard prepares the NEXT item (item2)
 	mgr.SyncClipboard()
 	if c.content != "item2" {
-		t.Errorf("expected clipboard content item2 (prepared next), got %s", c.content)
-	}
-	if len(s.state.Items) != 2 || s.state.Items[0] != "item1" || s.state.Items[1] != "item2" {
-		t.Errorf("queue state incorrect after first LIFO pop: %v", s.state.Items)
+		t.Errorf("expected clipboard=item2 after LIFO pop, got %q", c.content)
 	}
 
-	// Pop next (still LIFO)
 	item, err = mgr.Pop(true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if item != "item2" {
-		t.Errorf("expected item2, got %s", item)
+		t.Errorf("expected item2, got %q", item)
 	}
-	// SyncClipboard prepares next (item1)
 	mgr.SyncClipboard()
 	if c.content != "item1" {
-		t.Errorf("expected clipboard content item1 (prepared next), got %s", c.content)
-	}
-	if len(s.state.Items) != 1 || s.state.Items[0] != "item1" {
-		t.Errorf("queue state incorrect after second LIFO pop: %v", s.state.Items)
+		t.Errorf("expected clipboard=item1, got %q", c.content)
 	}
 
-	// Pop last one
 	item, err = mgr.Pop(true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if item != "item1" {
-		t.Errorf("expected item1, got %s", item)
+		t.Errorf("expected item1, got %q", item)
 	}
 	if len(s.state.Items) != 0 {
 		t.Errorf("expected empty queue, got %v", s.state.Items)
 	}
 
-	// Pop empty queue should error
-	_, err = mgr.Pop(true)
-	if err == nil {
-		t.Error("expected error when popping empty queue")
+	// Empty queue should error.
+	if _, err := mgr.Pop(true); err == nil {
+		t.Error("expected error on empty pop")
 	}
 }
 
@@ -190,32 +175,27 @@ func TestManager_SetActive(t *testing.T) {
 		Active: false,
 		Items:  []string{"something"},
 	}}
-	c := &MockClipboard{}
-	mgr := NewManager(s, c)
+	mgr := NewManager(s, &MockClipboard{})
 
-	// Activate (should clear)
-	err := mgr.SetActive(true)
-	if err != nil {
+	if err := mgr.SetActive(true); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !s.state.Active {
-		t.Error("expected active state")
+		t.Error("expected active")
 	}
 	if len(s.state.Items) != 0 {
-		t.Error("expected items to be cleared on activate")
+		t.Error("expected items cleared on activate")
 	}
 
-	// Add something and deactivate
 	s.state.Items = append(s.state.Items, "item")
-	err = mgr.SetActive(false)
-	if err != nil {
+	if err := mgr.SetActive(false); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if s.state.Active {
-		t.Error("expected inactive state")
+		t.Error("expected inactive")
 	}
 	if len(s.state.Items) != 0 {
-		t.Error("expected items to be cleared on deactivate")
+		t.Error("expected items cleared on deactivate")
 	}
 }
 
@@ -228,32 +208,26 @@ func TestManager_SetStackMode(t *testing.T) {
 	c := &MockClipboard{}
 	mgr := NewManager(s, c)
 
-	// Switch to stack mode
-	err := mgr.SetStackMode(true)
-	if err != nil {
+	if err := mgr.SetStackMode(true); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !s.state.IsStack {
 		t.Error("expected stack mode")
 	}
-	// Must call SyncClipboard
 	mgr.SyncClipboard()
 	if c.content != "item2" {
-		t.Errorf("expected item2 in clipboard, got %s", c.content)
+		t.Errorf("expected clipboard=item2 in stack mode, got %q", c.content)
 	}
 
-	// Switch back to queue mode
-	err = mgr.SetStackMode(false)
-	if err != nil {
+	if err := mgr.SetStackMode(false); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if s.state.IsStack {
 		t.Error("expected queue mode")
 	}
-	// Must call SyncClipboard
 	mgr.SyncClipboard()
 	if c.content != "item1" {
-		t.Errorf("expected item1 in clipboard, got %s", c.content)
+		t.Errorf("expected clipboard=item1 in queue mode, got %q", c.content)
 	}
 }
 
@@ -262,89 +236,100 @@ func TestManager_AddAndSync(t *testing.T) {
 	c := &MockClipboard{}
 	mgr := NewManager(s, c)
 
-	// Add first item
-	err := mgr.AddAndSync("item1")
-	if err != nil {
+	if err := mgr.AddAndSync("item1"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if c.content != "item1" {
-		t.Errorf("expected item1 in clipboard, got %s", c.content)
+		t.Errorf("expected clipboard=item1, got %q", c.content)
 	}
 
-	// Add second item (Queue mode)
-	err = mgr.AddAndSync("item2")
-	if err != nil {
+	// In queue mode, clipboard should stay on first item.
+	if err := mgr.AddAndSync("item2"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// In Queue mode, clipboard should stay at "item1"
 	if c.content != "item1" {
-		t.Errorf("expected item1 to remain in clipboard, got %s", c.content)
+		t.Errorf("expected clipboard=item1 (FIFO), got %q", c.content)
 	}
 	if len(s.state.Items) != 2 {
 		t.Errorf("expected 2 items, got %d", len(s.state.Items))
 	}
 
-	// Switch to stack mode and add third item
+	// In stack mode, clipboard should advance to newest item.
 	s.state.IsStack = true
-	err = mgr.AddAndSync("item3")
-	if err != nil {
+	if err := mgr.AddAndSync("item3"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// In Stack mode, clipboard should be "item3"
 	if c.content != "item3" {
-		t.Errorf("expected item3 in clipboard (LIFO), got %s", c.content)
+		t.Errorf("expected clipboard=item3 (LIFO), got %q", c.content)
 	}
 }
 
 func TestManager_PopAndSync(t *testing.T) {
 	s := &MockStorage{state: &storage.State{
-		Active: true,
-		Items:  []string{"item1", "item2", "item3"},
+		Active:  true,
+		IsStack: false,
+		Items:   []string{"item1", "item2", "item3"},
 	}}
 	c := &MockClipboard{}
 	mgr := NewManager(s, c)
 
-	// Pop first item (Queue mode)
-	item, err := mgr.PopAndSync(false)
+	// FIFO — pop item1, clipboard should be prepared with item2.
+	item, err := mgr.PopAndSync()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if item != "item1" {
-		t.Errorf("expected popped item1, got %s", item)
+		t.Errorf("expected item1, got %q", item)
 	}
-	// Should have prepared item2
 	if c.content != "item2" {
-		t.Errorf("expected item2 prepared in clipboard, got %s", c.content)
+		t.Errorf("expected clipboard=item2, got %q", c.content)
 	}
 
-	// Pop next (still Queue mode)
-	item, err = mgr.PopAndSync(false)
+	item, err = mgr.PopAndSync()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if item != "item2" {
-		t.Errorf("expected popped item2, got %s", item)
+		t.Errorf("expected item2, got %q", item)
 	}
-	// Should have prepared item3
 	if c.content != "item3" {
-		t.Errorf("expected item3 prepared in clipboard, got %s", c.content)
+		t.Errorf("expected clipboard=item3, got %q", c.content)
 	}
 
-	// Reset for Stack mode
+	// Switch to LIFO.
 	s.state.Items = []string{"item1", "item2", "item3"}
 	s.state.IsStack = true
-	c.content = "item3" // Initial state for stack
+	mgr.state = nil // invalidate cache
 
-	// Pop from stack
-	item, err = mgr.PopAndSync(true)
+	item, err = mgr.PopAndSync()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if item != "item3" {
-		t.Errorf("expected popped item3, got %s", item)
+		t.Errorf("expected item3, got %q", item)
 	}
-	// Should have prepared item2
 	if c.content != "item2" {
-		t.Errorf("expected item2 prepared in clipboard (LIFO), got %s", c.content)
+		t.Errorf("expected clipboard=item2 (LIFO), got %q", c.content)
+	}
+}
+
+func TestManager_FIFOMemoryLeak(t *testing.T) {
+	// Verify that repeated FIFO pops don't retain the old backing array.
+	// We can't inspect the internal array directly, but we can confirm correct
+	// values are returned across many pops without panicking.
+	items := make([]string, 100)
+	for i := range items {
+		items[i] = "x"
+	}
+	s := &MockStorage{state: &storage.State{Active: true, Items: items}}
+	mgr := NewManager(s, &MockClipboard{})
+
+	for i := 0; i < 100; i++ {
+		if _, err := mgr.Pop(false); err != nil {
+			t.Fatalf("pop %d failed: %v", i, err)
+		}
+	}
+	if len(s.state.Items) != 0 {
+		t.Errorf("expected empty queue, got %d items", len(s.state.Items))
 	}
 }

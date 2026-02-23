@@ -1,16 +1,23 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
-	"github.com/matouschdavid/Clipboard-queue/cmd"
+	"github.com/matouschdavid/Clipboard-queue/pkg/monitor"
 )
 
+var version = "v0.1.0" // overridden by -ldflags "-X main.version=..."
+
 func main() {
-	rootCmd := cmd.RootCmd
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	showVersion := flag.Bool("version", false, "Print version and exit")
+	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		os.Exit(0)
 	}
+
+	monitor.Start()
 }
