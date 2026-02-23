@@ -7,6 +7,7 @@
 - **Queue mode (default):** Paste items in the same order you copied them (FIFO).
 - **Stack mode:** Paste items in reverse order (LIFO).
 - **Persistent storage:** Your queue survives restarts — state is saved to `~/.cbq/state.json`.
+- **Browser copy buttons:** Clipboard changes made outside of `Cmd+C` (e.g. website "copy to clipboard" buttons) are captured automatically while the queue is active.
 
 ## Installation
 
@@ -40,7 +41,7 @@ Keep this running in the background (or set it up to launch on login).
 | Hotkey  | Action                                                       |
 |---------|--------------------------------------------------------------|
 | `Cmd+I` | **Activate** — clears the queue and starts recording copies  |
-| `Cmd+C` | Copy as normal — recorded to the queue while active          |
+| `Cmd+C` | Copy as normal — recorded to the queue while active; browser copy buttons are captured automatically too |
 | `Cmd+V` | Paste as normal — pops the next item from the queue while active |
 | `Cmd+R` | **Deactivate** — clears the queue and stops recording        |
 
