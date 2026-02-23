@@ -34,7 +34,7 @@ go install
 cbq
 ```
 
-Keep this running in the background (or set it up to launch on login).
+Keep this running in the background (or set it up to launch on login). The version number is printed to the console on startup.
 
 ### 2. Global hotkeys
 

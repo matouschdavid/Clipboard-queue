@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/matouschdavid/Clipboard-queue/pkg/monitor"
@@ -19,5 +20,6 @@ func main() {
 		os.Exit(0)
 	}
 
+	log.Printf("CBQ %s", version)
 	monitor.Start()
 }
