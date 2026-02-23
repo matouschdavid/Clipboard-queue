@@ -21,14 +21,13 @@ const (
 
 // macOS virtual keycodes.
 const (
-	keyC = 8
 	keyV = 9
 	keyI = 34
 	keyR = 15
 )
 
-// pollInterval is how often the clipboard is checked for changes made outside
-// of Cmd+C (e.g. browser "copy to clipboard" buttons).
+// pollInterval is how often the clipboard is checked for new content.
+// This catches both Cmd+C copies and browser "copy to clipboard" buttons.
 const pollInterval = 250 * time.Millisecond
 
 func newManager() *queue.Manager {
@@ -39,9 +38,13 @@ func newManager() *queue.Manager {
 	return queue.NewManager(storage.NewJSONStorage(path), &queue.SystemClipboard{})
 }
 
-// clipboardPoller watches for clipboard changes that happen without a Cmd+C
-// keypress (e.g. website "copy to clipboard" buttons) and feeds them into the
-// queue while it is active.
+// clipboardPoller captures every clipboard change while the queue is active.
+// It is the single capture path — there is no separate Cmd+C hook — which
+// avoids the race where sync() writes a value back to the clipboard and the
+// hook mistakes it for a new user copy.
+//
+// To prevent re-adding items that cbq itself wrote via sync(), the poller
+// skips any clipboard value that is already present in the queue.
 type clipboardPoller struct {
 	stop chan struct{}
 }
@@ -59,8 +62,8 @@ func (p *clipboardPoller) close() {
 func (p *clipboardPoller) run(mgr *queue.Manager) {
 	cb := &queue.SystemClipboard{}
 
-	// Seed with the current clipboard content so we don't immediately capture
-	// whatever was on the clipboard before the queue was activated.
+	// Seed with the current clipboard so we don't immediately capture
+	// whatever was on it before the queue was activated.
 	var lastSeen string
 	if text, err := cb.Read(); err == nil {
 		lastSeen = text
@@ -79,11 +82,25 @@ func (p *clipboardPoller) run(mgr *queue.Manager) {
 				continue
 			}
 			lastSeen = text
+
+			// Skip values that cbq already has in the queue (written back
+			// by sync() after an add or pop — not a new user copy).
+			state, err := mgr.GetStatus()
+			if err != nil {
+				continue
+			}
+			for _, item := range state.Items {
+				if item == text {
+					goto nextTick
+				}
+			}
+
 			if err := mgr.AddAndSync(text); err != nil {
 				log.Printf("Poller: error adding to queue: %v", err)
 			} else {
 				log.Printf("Captured: %q", text)
 			}
+		nextTick:
 		}
 	}
 }
@@ -111,8 +128,8 @@ func Start() {
 	log.Println("CBQ monitor started.")
 	log.Println("  Cmd+I  start (clears queue)")
 	log.Println("  Cmd+R  stop  (clears queue)")
-	log.Println("  Cmd+C  record copy")
 	log.Println("  Cmd+V  paste & advance")
+	log.Println("  (all clipboard changes captured automatically while active)")
 
 	// If the queue was left active from a previous session, resume polling.
 	var poller *clipboardPoller
@@ -157,30 +174,6 @@ func Start() {
 				poller = nil
 			}
 			log.Println("Queue STOPPED")
-
-		case keyC: // Cmd+C — record copy immediately (low-latency path)
-			state, err := mgr.GetStatus()
-			if err != nil {
-				log.Printf("Error reading state: %v", err)
-				continue
-			}
-			if !state.Active {
-				continue
-			}
-			go func() {
-				// Give the OS a moment to update the clipboard after Cmd+C.
-				time.Sleep(30 * time.Millisecond)
-				cb := &queue.SystemClipboard{}
-				text, err := cb.Read()
-				if err != nil || text == "" {
-					return
-				}
-				if err := mgr.AddAndSync(text); err != nil {
-					log.Printf("Error adding to queue: %v", err)
-					return
-				}
-				log.Printf("Added: %q", text)
-			}()
 
 		case keyV: // Cmd+V — paste current item and prepare the next
 			state, err := mgr.GetStatus()

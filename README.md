@@ -41,7 +41,7 @@ Keep this running in the background (or set it up to launch on login). The versi
 | Hotkey  | Action                                                       |
 |---------|--------------------------------------------------------------|
 | `Cmd+I` | **Activate** — clears the queue and starts recording copies  |
-| `Cmd+C` | Copy as normal — recorded to the queue while active; browser copy buttons are captured automatically too |
+| `Cmd+C` | Copy as normal — all clipboard changes are captured automatically while active, including browser copy buttons |
 | `Cmd+V` | Paste as normal — pops the next item from the queue while active |
 | `Cmd+R` | **Deactivate** — clears the queue and stops recording        |
 
